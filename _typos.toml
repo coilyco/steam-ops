@@ -1,0 +1,16 @@
+# Domain vocabulary typos reads as misspelled. Each entry is a real name in the
+# surface this repo wraps, so correcting one would break a match rather than fix
+# a word. See coilyco-flight-deck/agentic-os#1383 for why this landed.
+
+[default.extend-words]
+# Valve's "Dota 2", in games.yaml and the fixtures that mirror it.
+Dota = "Dota"
+# Steam's own field name on an account-license payload, not a package id we
+# chose. Renaming it here would stop matching the API response.
+packageid = "packageid"
+# Plug and Play, in the Windows display-mode script. typos tokenizes "PnP"
+# and reads the leading pair as "On".
+Pn = "Pn"
+# Used deliberately in prose about callables that tests invoke directly. The
+# suggested "invocable" is the rarer spelling of the two.
+invokable = "invokable"

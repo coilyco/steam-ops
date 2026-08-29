@@ -1,0 +1,6 @@
+# Forgejo runner labels actionlint cannot know from a GitHub-hosted list.
+# `docker` builds and tests, `deploy` reaches the cluster credential.
+self-hosted-runner:
+  labels:
+    - docker
+    - deploy

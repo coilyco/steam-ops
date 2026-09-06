@@ -1,7 +1,6 @@
-# Tests, then publishes the steam-mcp image to Forgejo OCI on every push to
-# main. No deploy stage here: rollout is driven from
-# coilyco-bridge/deploy/services/steam-mcp per the layer invariant
-# (source -> deploy). The repo is steam-ops, but the image is steam-mcp.
+# Tests, then publishes the steam-mcp image to Forgejo OCI on every push to main.
+# No deploy stage, the repo/image name split, and why: docs/publishing.md
+
 name: build-publish
 
 on:

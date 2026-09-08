@@ -1,9 +1,5 @@
 # Catalog metadata for the cross-repo knowledge graph.
-#
-# Dev verbs used to live here as a `commands:` block. They are recipes in the
-# justfile now. This file survives only because check_catalog_block pins this
-# exact path and catalog-trifecta wants README, AGENTS, and FEATURES to link
-# it, both upstream in agentic-os.
+# Dev verbs are justfile recipes now; check_catalog_block upstream pins this path.
 
 catalog:
   description: "Read-only MCP exposing Kai's Steam library (owned games, recently played) over streamable-HTTP, backed by the Steam Web API. The second pure-read clone of the personal-MCP fleet and its second credential shape (a Web API key); key + steamid64 resolve from env/SSM at runtime and never enter the image. Repo is steam-ops, image/service is steam-mcp. Deploy surface lives in coilyco-bridge/deploy."

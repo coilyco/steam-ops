@@ -91,6 +91,5 @@ switching tasks, or ending a session. The remote is the only durable artifact.
 
 - [README.md](README.md) - human-facing intro.
 - [docs/FEATURES.md](docs/FEATURES.md) - inventory of what ships today.
-- [.ward/ward.yaml](.ward/ward.yaml) - allowlisted commands + catalog block.
 
 Cross-reference convention from [coilysiren/agentic-os#59](https://github.com/coilyco-flight-deck/agentic-os/issues/59).

@@ -117,7 +117,6 @@ Dev commands are declared in the [`justfile`](justfile). Run them as `just <verb
 
 - [AGENTS.md](AGENTS.md) - agent operating context for this repo.
 - [docs/FEATURES.md](docs/FEATURES.md) - inventory of what ships today.
-- [.ward/ward.yaml](.ward/ward.yaml) - allowlisted commands + catalog block.
 - [coilyco-flight-deck/reddit-mcp](https://forgejo.coilysiren.me/coilyco-flight-deck/reddit-mcp) - the source pattern this repo mirrors.
 
 Cross-reference convention from [coilysiren/agentic-os#59](https://github.com/coilyco-flight-deck/agentic-os/issues/59).

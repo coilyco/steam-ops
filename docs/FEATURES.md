@@ -34,6 +34,5 @@ full source SHA. Rollout lives in [deploy](https://forgejo.coilysiren.me/coilyco
 
 - [../README.md](../README.md) - human-facing intro.
 - [../AGENTS.md](../AGENTS.md) - agent operating context.
-- [../.ward/ward.yaml](../.ward/ward.yaml) - allowlisted commands + catalog block.
 
 Cross-reference convention from [coilysiren/agentic-os#59](https://github.com/coilyco-flight-deck/agentic-os/issues/59).

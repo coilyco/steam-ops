@@ -2,7 +2,7 @@
 set -euo pipefail
 
 registry="forgejo.coilysiren.me"
-image_name="coilyco-gaming/steam-mcp"
+image_name="coilyco/steam-mcp"
 
 if [ -z "${REGISTRY_TOKEN:-}" ]; then
   echo "REGISTRY_TOKEN is required for the trusted image-publish lane." >&2

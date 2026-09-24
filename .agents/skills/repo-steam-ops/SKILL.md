@@ -5,7 +5,7 @@ description: Triggers - steam-ops
 
 # repo-steam-ops
 
-Repository `coilyco-gaming/steam-ops`. Checkout at `~/projects/coilyco-gaming/steam-ops/` when resident.
+Repository `coilyco/steam-ops`. Checkout at `~/projects/coilyco/steam-ops/` when resident.
 
 - [`README.md`](../../../README.md) - what it is, quickstart, layout.
 - [`AGENTS.md`](../../../AGENTS.md) - agent-facing context for the repo.

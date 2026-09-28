@@ -40,6 +40,7 @@ from mcp.types import Icon
 
 from steam_mcp import storefront
 from steam_mcp.client import ClientProtocolAdapter, persist_refresh_token
+from steam_mcp.crash import init_crash_reporting
 
 API_BASE = "https://api.steampowered.com"
 TIMEOUT = 20
@@ -290,6 +291,7 @@ for _tool in (
 
 def main() -> None:
     """Run the MCP server over streamable-HTTP (endpoint served at /mcp)."""
+    init_crash_reporting()
     mcp.run(transport="streamable-http")
 
 

@@ -17,6 +17,8 @@ on port 9112, streamable-HTTP at `/mcp`. The repo is `steam-ops`, the image is
 
 - **Security** - read-only by construction, credentials never in the image,
   network-gated reach. See [security](security.md).
+- **Crash reporting** - `SENTRY_DSN` sends crashes only to Sentry, with locals,
+  source and breadcrumbs off and `key=` values redacted.
 - **Steam brand icon** - `initialize` advertises `serverInfo.icons`, so a client
   that renders server icons shows Valve's mark.
 - **Ops helpers** - `sunshine-sync-steam.ps1` and `steam-airgap.ps1` run on an

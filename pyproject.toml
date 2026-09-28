@@ -20,6 +20,8 @@ dependencies = [
   "mcp>=1.27,<2",
   "requests>=2.32.0",
   "steamio>=1.1.3",
+  # Crash reporting only (teable:coilyco/deploy#8409). Off unless SENTRY_DSN is set.
+  "sentry-sdk>=2.0,<3",
 ]
 
 [project.scripts]

@@ -40,7 +40,7 @@ from mcp.types import Icon
 
 from steam_mcp import storefront
 from steam_mcp.client import ClientProtocolAdapter, persist_refresh_token
-from steam_mcp.crash import init_crash_reporting
+from steam_mcp.crash import init_crash_reporting, register_secret
 
 API_BASE = "https://api.steampowered.com"
 TIMEOUT = 20
@@ -130,13 +130,16 @@ def _secret(name: str) -> str:
     value = os.environ.get(env_var) or _ssm(ssm_name)
     if not value:
         raise ValueError(f"secret {name!r} is not configured (set {env_var} or SSM {ssm_name})")
+    register_secret(value)
     return value
 
 
 def _optional_secret(name: str) -> str | None:
     """Resolve an optional secret without leaking its value or request URL."""
     env_var, ssm_name = SECRETS[name]
-    return os.environ.get(env_var) or _ssm(ssm_name)
+    value = os.environ.get(env_var) or _ssm(ssm_name)
+    register_secret(value)
+    return value
 
 
 def _api_url(endpoint: str, extra: dict[str, Any]) -> str:
@@ -258,6 +261,7 @@ def _client_adapter() -> ClientProtocolAdapter:
     def persist(token: str) -> None:
         global _client_refresh_token_cache
         persist_refresh_token(refresh_ssm_name, token)
+        register_secret(token)
         _client_refresh_token_cache = token
 
     return ClientProtocolAdapter(

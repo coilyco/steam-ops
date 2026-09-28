@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 import sentry_sdk
 from sentry_sdk.integrations.logging import LoggingIntegration
+from sentry_sdk.integrations.mcp import MCPIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
 
 if TYPE_CHECKING:
@@ -62,11 +63,15 @@ def init_crash_reporting() -> bool:
             include_local_variables=False,
             include_source_context=False,
             max_breadcrumbs=0,
+            max_request_body_size="never",
+            send_default_pii=False,
             before_send=_before_send,
             integrations=[
                 LoggingIntegration(level=None, event_level=None),
                 StarletteIntegration(failed_request_status_codes=set()),
             ],
+            # It reports every MCP tool error, which FastMCP returns as handled.
+            disabled_integrations=[MCPIntegration()],
         )
     except Exception as exc:
         # The class only: a BadDsn message can carry the DSN itself.

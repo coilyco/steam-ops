@@ -104,3 +104,26 @@ def test_init_failure_logs_the_class_and_never_the_dsn(monkeypatch, caplog):
         assert crash.init_crash_reporting() is False
     assert "ValueError" in caplog.text
     assert "secret-key" not in caplog.text
+
+
+def test_a_raising_mcp_tool_sends_nothing(captured):
+    import anyio
+    from mcp import types as mt
+    from mcp.server.fastmcp import FastMCP
+
+    # Built after init, so an enabled MCP integration would have patched it.
+    server = FastMCP("crash-test")
+
+    @server.tool()
+    def boom() -> str:
+        raise RuntimeError("Steam API returned 503")
+
+    handler = server._mcp_server.request_handlers[mt.CallToolRequest]
+    request = mt.CallToolRequest(
+        method="tools/call", params=mt.CallToolRequestParams(name="boom", arguments={})
+    )
+    result = anyio.run(handler, request)
+    assert result.root.isError is True
+    sentry_sdk.flush()
+    assert captured.events == []
+    assert sentry_sdk.get_client().get_integration("mcp") is None

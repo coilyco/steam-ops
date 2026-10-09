@@ -19,6 +19,8 @@ from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
 import pytest
+import steam
+from steam.manifest import AppInfo
 
 _SECRET_ENV = [
     "STEAM_WEB_API_KEY",
@@ -228,9 +230,19 @@ class _FakeSteamClient:
     async def close(self) -> None:
         self.closed.set()
 
-    async def fetch_product_info(self, **kwargs: object) -> list[dict[str, object]]:
-        assert kwargs == {"apps": [440]}
-        return [{"common": {"name": "Team Fortress 2", "type": "game", "oslist": "windows"}}]
+    def get_app(self, appid: int) -> object:
+        return steam.PartialApp(self._state, id=appid)  # type: ignore[arg-type]
+
+    async def fetch_product_info(self, *, apps: list[object]) -> list[object]:
+        # steamio does `app.id for app in apps`; a bare int raised AttributeError in prod.
+        ids = [app.id for app in apps]  # type: ignore[attr-defined]
+        assert ids == [440]
+        proto = SimpleNamespace(sha=b"\x01", size=10, change_number=7, appid=440)
+        data = {
+            "common": {"name": "Team Fortress 2", "type": "game", "oslist": "windows,linux"},
+            "extended": {"isfreeapp": "1"},
+        }
+        return [AppInfo(self._state, data, proto)]  # type: ignore[arg-type]
 
 
 def test_client_uses_refresh_token_rotates_and_never_returns_it(
@@ -249,7 +261,14 @@ def test_client_uses_refresh_token_rotates_and_never_returns_it(
     assert fake_client.login_calls == [((), {"refresh_token": "old-token"})]
     assert persisted == ["rotated-token"]
     assert got["provenance"]["plane"] == "client_pics"
-    assert got["item"]["name"] == "Team Fortress 2"
+    assert got["item"] == {
+        "appid": 440,
+        "name": "Team Fortress 2",
+        "type": "Game",
+        "oslist": ["windows", "linux"],
+        "is_free": True,
+        "change_number": 7,
+    }
     assert "old-token" not in repr(got)
     assert "rotated-token" not in repr(got)
 

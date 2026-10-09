@@ -383,6 +383,53 @@ def test_client_failure_does_not_surface_credential_material(
     assert "super-secret" not in str(exc_info.value)
 
 
+def test_client_names_the_failure_inside_a_steamio_task_group(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import logging
+
+    from steam_mcp.client import ClientProtocolAdapter
+
+    class ConnectionClosed(Exception):  # noqa: N818 - steamio's own name
+        pass
+
+    class ClosingClient(_FakeSteamClient):
+        async def login(self, *args: object, **kwargs: object) -> None:
+            logging.getLogger("steam.gateway").debug(
+                "Failed to login with result: %r", "<Result.AccessDenied: 15>"
+            )
+            raise ExceptionGroup(
+                "unhandled errors in a TaskGroup",
+                [ExceptionGroup("inner", [ConnectionClosed("wss://cm?token=live-token")])],
+            )
+
+    adapter = ClientProtocolAdapter(
+        lambda name: "live-token" if name == "client_refresh_token" else None,
+        lambda token: pytest.fail("a failed login must not persist a token"),
+    )
+    monkeypatch.setitem(sys.modules, "steam", SimpleNamespace(Client=ClosingClient))
+    with pytest.raises(RuntimeError) as exc_info:
+        asyncio.run(adapter.product_info(382310))
+    message = str(exc_info.value)
+    assert "ConnectionClosed" in message
+    assert "TaskGroup" not in message
+    assert "live-token" not in message
+
+
+def test_close_reason_capture_keeps_steamio_result_and_restores_logger() -> None:
+    import logging
+
+    from steam_mcp.client import _capture_close_reason
+
+    gateway = logging.getLogger("steam.gateway")
+    before = (gateway.level, list(gateway.handlers))
+    with _capture_close_reason() as reasons:
+        gateway.debug("Failed to login with result: %r", "<Result.AccessDenied: 15>")
+        gateway.debug("Received %d servers from WebAPI", 3)
+    assert reasons == ["Failed to login with result: '<Result.AccessDenied: 15>'"]
+    assert (gateway.level, list(gateway.handlers)) == before
+
+
 def test_refresh_token_persistence_keeps_value_out_of_argv(monkeypatch: pytest.MonkeyPatch) -> None:
     from steam_mcp.client import persist_refresh_token
 

@@ -7,12 +7,19 @@ only credential precedence, the refresh-token lifecycle, and normalization.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
+import logging
 import subprocess
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import Any, Literal
 
 LOGIN_READY_TIMEOUT = 45
+
+_GATEWAY_LOG = "steam.gateway"
+# steamio logs why it closed the socket at DEBUG only, in these two lines. A reword
+# there loses the hint, never the failure.
+_CLOSE_REASONS = ("Failed to login with result", "Received WSMessage")
 
 
 class ClientProtocolAdapter:
@@ -63,16 +70,18 @@ class ClientProtocolAdapter:
         *,
         readiness: Literal["login", "licenses"],
     ) -> Any:
-        try:
-            import steam
+        with _capture_close_reason() as reasons:
+            try:
+                import steam
 
-            async with steam.Client() as client:
-                return await self._login(client, operation, readiness=readiness)
-        except (ImportError, OSError, RuntimeError, TimeoutError, ValueError):
-            raise RuntimeError(
-                "Steam client authentication or PICS request failed; verify the persisted "
-                "refresh token or perform the documented manual bootstrap."
-            ) from None
+                async with steam.Client() as client:
+                    return await self._login(client, operation, readiness=readiness)
+            except BaseExceptionGroup as group:
+                # steamio's TaskGroup wraps ConnectionClosed in a group the tuple
+                # below never matched, so callers saw only "unhandled errors".
+                raise _failure(_leaf_types(group), reasons) from None
+            except (ImportError, OSError, RuntimeError, TimeoutError, ValueError) as exc:
+                raise _failure([type(exc).__name__], reasons) from None
 
     async def product_info(self, appid: int) -> dict[str, Any]:
         """Read PICS product metadata for a single positive application id."""
@@ -110,6 +119,58 @@ class ClientProtocolAdapter:
             }
 
         return await self._with_client(operation, readiness="licenses")
+
+
+class _CloseReasons(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__(logging.DEBUG)
+        self.lines: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        text = record.getMessage()
+        if text.startswith(_CLOSE_REASONS):
+            self.lines.append(text)
+
+
+@contextlib.contextmanager
+def _capture_close_reason() -> Iterator[list[str]]:
+    """Collect steamio's DEBUG close-reason lines for the failure message.
+
+    The lines carry a Steam result or a websocket close code, never the token.
+    """
+    log = logging.getLogger(_GATEWAY_LOG)
+    handler = _CloseReasons()
+    previous = log.level
+    log.addHandler(handler)
+    if previous == logging.NOTSET or previous > logging.DEBUG:
+        log.setLevel(logging.DEBUG)
+    try:
+        yield handler.lines
+    finally:
+        log.removeHandler(handler)
+        log.setLevel(previous)
+
+
+def _leaf_types(group: BaseExceptionGroup[BaseException]) -> list[str]:
+    """Class names of every non-group exception inside a (nested) group."""
+    names: list[str] = []
+    for member in group.exceptions:
+        if isinstance(member, BaseExceptionGroup):
+            names.extend(_leaf_types(member))
+        else:
+            names.append(type(member).__name__)
+    return names
+
+
+def _failure(types: list[str], reasons: list[str]) -> RuntimeError:
+    """Name what failed by class and Steam's stated reason, never by exception text."""
+    detail = ", ".join(dict.fromkeys(types)) or "unknown"
+    if reasons:
+        detail += f"; steam said: {reasons[-1]}"
+    return RuntimeError(
+        f"Steam client authentication or PICS request failed ({detail}); verify the "
+        "persisted refresh token or perform the documented manual bootstrap."
+    )
 
 
 async def run_authenticated_session(

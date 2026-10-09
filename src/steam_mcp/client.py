@@ -89,7 +89,8 @@ class ClientProtocolAdapter:
             raise ValueError("appid must be a positive Steam application id")
 
         async def operation(client: Any) -> dict[str, Any]:
-            infos = await client.fetch_product_info(apps=[appid])
+            # steamio reads `.id` off each app, so a bare int raises AttributeError.
+            infos = await client.fetch_product_info(apps=[client.get_app(appid)])
             info = infos[0] if infos else None
             return {
                 "source": "steam_client_pics",
@@ -244,18 +245,22 @@ def _safe_value(value: Any) -> Any:
 
 
 def _product_item(appid: int, info: Any) -> dict[str, Any] | None:
+    """Flatten steamio's AppInfo, which exposes attributes and has no `common` dict."""
     if info is None:
         return None
-    common = getattr(info, "common", None)
-    if not common and isinstance(info, dict):
-        common = info.get("common")
-    common = common or {}
+    platforms = (
+        ("windows", info.is_on_windows()),
+        ("macos", info.is_on_mac_os()),
+        ("linux", info.is_on_linux()),
+    )
+    app_type = info.type
     return {
         "appid": appid,
-        "name": common.get("name"),
-        "type": common.get("type"),
-        "oslist": common.get("oslist"),
-        "release_state": common.get("releasestate"),
+        "name": info.name,
+        "type": getattr(app_type, "name", None) or str(app_type),
+        "oslist": [name for name, supported in platforms if supported],
+        "is_free": info.is_free(),
+        "change_number": info.change_number,
     }
 
 

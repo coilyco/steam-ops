@@ -454,8 +454,13 @@ def _stalled_client(*, accepted: bool) -> type[_FakeSteamClient]:
 
     class StalledClient(_FakeSteamClient):
         async def login(self, *args: object, **kwargs: object) -> None:
+            gateway = logging.getLogger("steam.gateway")
+            gateway.debug("Socket has received CMsgClientHello(secret_thing=1)")
             if accepted:
-                logging.getLogger("steam.gateway").debug("Heartbeat started.")
+                gateway.debug(
+                    "Socket has received CMsgClientLogonResponse(eresult=1, public_ip='9.9.9.9')"
+                )
+            gateway.debug("Socket has received CMsgClientIsLimitedAccount(bis_limited=False)")
             await self.closed.wait()
 
         async def wait_for(self, event: str) -> None:
@@ -481,6 +486,12 @@ def test_login_stall_after_accepted_logon_does_not_blame_the_token(
     assert "accepted the refresh token" in message
     assert "bootstrap" not in message
     assert "live-token" not in message
+    assert (
+        "last steam messages: CMsgClientHello, CMsgClientLogonResponse, "
+        "CMsgClientIsLimitedAccount" in message
+    )
+    assert "9.9.9.9" not in message and "secret_thing" not in message
+    assert "first session in this process" in message
 
 
 def test_login_stall_before_logon_still_points_at_the_token(
@@ -529,6 +540,50 @@ def test_concurrent_calls_never_overlap_on_the_steam_account(
     got = asyncio.run(both())
     assert [g["item"]["appid"] for g in got] == [440, 440]  # type: ignore[index]
     assert peak == 1
+
+
+def test_second_session_waits_out_the_gap_and_reports_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import time
+
+    from steam_mcp.client import ClientProtocolAdapter
+
+    starts: list[float] = []
+
+    class TimedClient(_FakeSteamClient):
+        async def __aenter__(self) -> TimedClient:
+            starts.append(time.monotonic())
+            return self
+
+    adapter = ClientProtocolAdapter(lambda name: "t", lambda token: None)
+    monkeypatch.setattr("steam_mcp.client.MIN_SESSION_GAP", 0.2)
+    monkeypatch.setitem(sys.modules, "steam", SimpleNamespace(Client=TimedClient))
+
+    async def two() -> None:
+        await adapter.product_info(440)
+        await adapter.product_info(440)
+
+    asyncio.run(two())
+    assert starts[1] - starts[0] >= 0.2
+
+
+def test_session_log_is_quiet_about_debug_but_passes_info_on(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import logging
+
+    from steam_mcp.client import _capture_close_reason
+
+    gateway = logging.getLogger("steam.gateway")
+    before = (gateway.level, gateway.propagate)
+    with caplog.at_level(logging.DEBUG), _capture_close_reason():
+        gateway.debug("Socket has received CMsgClientPersonaState(friends=...)")
+        gateway.info("Attempting to create a websocket connection")
+    assert [r.getMessage() for r in caplog.records] == [
+        "Attempting to create a websocket connection"
+    ]
+    assert (gateway.level, gateway.propagate) == before
 
 
 def test_refresh_token_persistence_keeps_value_out_of_argv(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -10,18 +10,27 @@ import asyncio
 import contextlib
 import json
 import logging
+import re
 import subprocess
+import time
 from collections.abc import Callable, Iterator
 from typing import Any, Literal
 
 LOGIN_READY_TIMEOUT = 45
+# Calls 2 and 4 of every four-call probe failed, each right after a session ended.
+# Spacing sessions tests "a logon soon after a logoff gets no reply"; 0 turns it off.
+MIN_SESSION_GAP = 20.0
 
 _GATEWAY_LOG = "steam.gateway"
-# steamio logs why it closed the socket at DEBUG only, in these two lines. A reword
-# there loses the hint, never the failure.
+# steamio logs these at DEBUG only. A reword there loses the hint, never the failure.
 _CLOSE_REASONS = ("Failed to login with result", "Received WSMessage")
-# Logged right after Steam accepts the logon response, before the post-logon requests.
-_LOGON_ACCEPTED = "Heartbeat started"
+_RECEIVED = "Socket has received "
+_LOGON_OK = re.compile(r"CMsgClientLogonResponse\(.*\beresult=1\b")
+_MESSAGE_NAME = re.compile(r"[A-Za-z_]\w*")
+_LAST_MESSAGES = 6
+
+_log = logging.getLogger("steam_mcp.session")
+_last_session_end: float | None = None
 
 _session_lock: asyncio.Lock | None = None
 _session_lock_loop: asyncio.AbstractEventLoop | None = None
@@ -85,7 +94,12 @@ class ClientProtocolAdapter:
         readiness: Literal["login", "licenses"],
     ) -> Any:
         async with _one_session_at_a_time():
+            gap = await _wait_out_session_gap()
+            started = time.monotonic()
+            outcome = "ok"
             with _capture_close_reason() as seen:
+                seen.gap = gap
+                _log.info("steam session start gap=%s", _fmt_gap(gap))
                 try:
                     import steam
 
@@ -94,9 +108,22 @@ class ClientProtocolAdapter:
                 except BaseExceptionGroup as group:
                     # steamio's TaskGroup wraps ConnectionClosed in a group the tuple
                     # below never matched, so callers saw only "unhandled errors".
-                    raise _failure(_leaf_types(group), seen) from None
+                    error = _failure(_leaf_types(group), seen)
+                    outcome = "failed"
+                    raise error from None
                 except (ImportError, OSError, RuntimeError, TimeoutError, ValueError) as exc:
-                    raise _failure([type(exc).__name__], seen) from None
+                    error = _failure([type(exc).__name__], seen)
+                    outcome = "failed"
+                    raise error from None
+                finally:
+                    global _last_session_end
+                    _last_session_end = time.monotonic()
+                    _log.info(
+                        "steam session end outcome=%s elapsed=%.1fs last=%s",
+                        outcome,
+                        _last_session_end - started,
+                        ",".join(seen.received) or "none",
+                    )
 
     async def product_info(self, appid: int) -> dict[str, Any]:
         """Read PICS product metadata for a single positive application id."""
@@ -138,36 +165,65 @@ class ClientProtocolAdapter:
 
 
 class _CloseReasons(logging.Handler):
-    def __init__(self) -> None:
+    """Read steamio's DEBUG lines for the failure message, and pass INFO and up on."""
+
+    def __init__(self, parent: logging.Logger) -> None:
         super().__init__(logging.DEBUG)
+        self._parent = parent
         self.lines: list[str] = []
+        self.received: list[str] = []
         self.logon_accepted = False
+        self.gap: float | None = None
 
     def emit(self, record: logging.LogRecord) -> None:
         text = record.getMessage()
         if text.startswith(_CLOSE_REASONS):
             self.lines.append(text)
-        elif text.startswith(_LOGON_ACCEPTED):
-            self.logon_accepted = True
+        elif text.startswith(_RECEIVED):
+            body = text[len(_RECEIVED) :]
+            if _LOGON_OK.match(body):
+                self.logon_accepted = True
+            # The class name only: the rest of the repr carries account data.
+            name = _MESSAGE_NAME.match(body)
+            if name and (not self.received or self.received[-1] != name.group()):
+                self.received = [*self.received, name.group()][-_LAST_MESSAGES:]
+        if record.levelno >= logging.INFO:
+            self._parent.handle(record)
 
 
 @contextlib.contextmanager
 def _capture_close_reason() -> Iterator[_CloseReasons]:
-    """Collect steamio's DEBUG close-reason lines for the failure message.
+    """Read steamio's gateway log for one session without echoing its DEBUG lines.
 
-    The lines carry a Steam result or a websocket close code, never the token.
+    Lowering the logger to DEBUG would write every received message, friend list
+    included, to the pod log. So propagation stops and INFO and up is forwarded.
     """
     log = logging.getLogger(_GATEWAY_LOG)
-    handler = _CloseReasons()
-    previous = log.level
+    handler = _CloseReasons(log.parent or logging.getLogger())
+    previous = (log.level, log.propagate)
     log.addHandler(handler)
-    if previous == logging.NOTSET or previous > logging.DEBUG:
-        log.setLevel(logging.DEBUG)
+    log.propagate = False
+    log.setLevel(logging.DEBUG)
     try:
         yield handler
     finally:
         log.removeHandler(handler)
-        log.setLevel(previous)
+        log.setLevel(previous[0])
+        log.propagate = previous[1]
+
+
+async def _wait_out_session_gap() -> float | None:
+    """Hold until the previous session ended MIN_SESSION_GAP ago. Returns the gap."""
+    if _last_session_end is None:
+        return None
+    wait = MIN_SESSION_GAP - (time.monotonic() - _last_session_end)
+    if wait > 0:
+        await asyncio.sleep(wait)
+    return time.monotonic() - _last_session_end
+
+
+def _fmt_gap(gap: float | None) -> str:
+    return "first" if gap is None else f"{gap:.1f}s"
 
 
 def _leaf_types(group: BaseExceptionGroup[BaseException]) -> list[str]:
@@ -186,6 +242,12 @@ def _failure(types: list[str], seen: _CloseReasons) -> RuntimeError:
     detail = ", ".join(dict.fromkeys(types)) or "unknown"
     if seen.lines:
         detail += f"; steam said: {seen.lines[-1]}"
+    detail += f"; last steam messages: {', '.join(seen.received) or 'none'}"
+    detail += (
+        "; first session in this process"
+        if seen.gap is None
+        else f"; previous session ended {seen.gap:.1f}s before"
+    )
     if seen.logon_accepted and "TimeoutError" in types:
         hint = (
             f"Steam accepted the refresh token but sent no reply to the post-logon "

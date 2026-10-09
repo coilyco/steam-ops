@@ -445,8 +445,90 @@ def test_close_reason_capture_keeps_steamio_result_and_restores_logger() -> None
     with _capture_close_reason() as reasons:
         gateway.debug("Failed to login with result: %r", "<Result.AccessDenied: 15>")
         gateway.debug("Received %d servers from WebAPI", 3)
-    assert reasons == ["Failed to login with result: '<Result.AccessDenied: 15>'"]
+    assert reasons.lines == ["Failed to login with result: '<Result.AccessDenied: 15>'"]
     assert (gateway.level, list(gateway.handlers)) == before
+
+
+def _stalled_client(*, accepted: bool) -> type[_FakeSteamClient]:
+    import logging
+
+    class StalledClient(_FakeSteamClient):
+        async def login(self, *args: object, **kwargs: object) -> None:
+            if accepted:
+                logging.getLogger("steam.gateway").debug("Heartbeat started.")
+            await self.closed.wait()
+
+        async def wait_for(self, event: str) -> None:
+            await asyncio.Event().wait()  # steamio never dispatches "login"
+
+    return StalledClient
+
+
+def test_login_stall_after_accepted_logon_does_not_blame_the_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from steam_mcp.client import ClientProtocolAdapter
+
+    adapter = ClientProtocolAdapter(lambda name: "live-token", lambda token: None)
+    monkeypatch.setattr("steam_mcp.client.LOGIN_READY_TIMEOUT", 0.05)
+    monkeypatch.setitem(
+        sys.modules, "steam", SimpleNamespace(Client=_stalled_client(accepted=True))
+    )
+    with pytest.raises(RuntimeError) as exc_info:
+        asyncio.run(adapter.product_info(440))
+    message = str(exc_info.value)
+    assert "TimeoutError" in message
+    assert "accepted the refresh token" in message
+    assert "bootstrap" not in message
+    assert "live-token" not in message
+
+
+def test_login_stall_before_logon_still_points_at_the_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from steam_mcp.client import ClientProtocolAdapter
+
+    adapter = ClientProtocolAdapter(lambda name: "live-token", lambda token: None)
+    monkeypatch.setattr("steam_mcp.client.LOGIN_READY_TIMEOUT", 0.05)
+    monkeypatch.setitem(
+        sys.modules, "steam", SimpleNamespace(Client=_stalled_client(accepted=False))
+    )
+    with pytest.raises(RuntimeError, match="refresh token or perform the documented"):
+        asyncio.run(adapter.product_info(440))
+
+
+def test_concurrent_calls_never_overlap_on_the_steam_account(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from steam_mcp.client import ClientProtocolAdapter
+
+    active = 0
+    peak = 0
+
+    class CountingClient(_FakeSteamClient):
+        async def __aenter__(self) -> CountingClient:
+            nonlocal active, peak
+            active += 1
+            peak = max(peak, active)
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            nonlocal active
+            active -= 1
+
+        async def fetch_product_info(self, *, apps: list[object]) -> list[object]:
+            await asyncio.sleep(0.01)  # let a second call try to start
+            return await super().fetch_product_info(apps=apps)
+
+    adapter = ClientProtocolAdapter(lambda name: "t", lambda token: None)
+    monkeypatch.setitem(sys.modules, "steam", SimpleNamespace(Client=CountingClient))
+
+    async def both() -> list[dict[str, object]]:
+        return list(await asyncio.gather(adapter.product_info(440), adapter.product_info(440)))
+
+    got = asyncio.run(both())
+    assert [g["item"]["appid"] for g in got] == [440, 440]  # type: ignore[index]
+    assert peak == 1
 
 
 def test_refresh_token_persistence_keeps_value_out_of_argv(monkeypatch: pytest.MonkeyPatch) -> None:

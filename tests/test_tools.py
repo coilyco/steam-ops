@@ -435,6 +435,57 @@ def test_client_names_the_failure_inside_a_steamio_task_group(
     assert "live-token" not in message
 
 
+def test_client_failure_names_the_failing_frame_but_not_the_exception_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from steam_mcp.client import ClientProtocolAdapter
+
+    class BuggyClient(_FakeSteamClient):
+        async def login(self, *args: object, **kwargs: object) -> None:
+            self.broken_adapter_code()
+
+        def broken_adapter_code(self) -> None:
+            raise ValueError("bad value for token=live-token at wss://cm.steam/live-token")
+
+    adapter = ClientProtocolAdapter(
+        lambda name: "live-token" if name == "client_refresh_token" else None,
+        lambda token: None,
+    )
+    monkeypatch.setitem(sys.modules, "steam", SimpleNamespace(Client=BuggyClient))
+    with pytest.raises(RuntimeError) as exc_info:
+        asyncio.run(adapter.licenses())
+    message = str(exc_info.value)
+    assert "ValueError at tests/test_tools.py:" in message
+    assert " in broken_adapter_code" in message
+    assert "live-token" not in message
+    assert "wss://" not in message
+
+
+def test_client_failure_inside_a_task_group_names_the_leaf_frame(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from steam_mcp.client import ClientProtocolAdapter
+
+    class GroupedClient(_FakeSteamClient):
+        async def login(self, *args: object, **kwargs: object) -> None:
+            try:
+                self.raise_deep()
+            except OSError as leaf:
+                raise ExceptionGroup("unhandled errors in a TaskGroup", [leaf]) from None
+
+        def raise_deep(self) -> None:
+            raise OSError("wss://cm?token=live-token")
+
+    adapter = ClientProtocolAdapter(lambda name: "live-token", lambda token: None)
+    monkeypatch.setitem(sys.modules, "steam", SimpleNamespace(Client=GroupedClient))
+    with pytest.raises(RuntimeError) as exc_info:
+        asyncio.run(adapter.licenses())
+    message = str(exc_info.value)
+    assert "OSError at tests/test_tools.py:" in message
+    assert " in raise_deep" in message
+    assert "live-token" not in message
+
+
 def test_close_reason_capture_keeps_steamio_result_and_restores_logger() -> None:
     import logging
 

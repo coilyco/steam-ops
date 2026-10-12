@@ -14,6 +14,7 @@ import re
 import subprocess
 import time
 from collections.abc import Callable, Iterator
+from pathlib import Path
 from typing import Any, Literal
 
 LOGIN_READY_TIMEOUT = 45
@@ -108,11 +109,11 @@ class ClientProtocolAdapter:
                 except BaseExceptionGroup as group:
                     # steamio's TaskGroup wraps ConnectionClosed in a group the tuple
                     # below never matched, so callers saw only "unhandled errors".
-                    error = _failure(_leaf_types(group), seen)
+                    error = _failure(_leaf_types(group), seen, _frame_of(group))
                     outcome = "failed"
                     raise error from None
                 except (ImportError, OSError, RuntimeError, TimeoutError, ValueError) as exc:
-                    error = _failure([type(exc).__name__], seen)
+                    error = _failure([type(exc).__name__], seen, _frame_of(exc))
                     outcome = "failed"
                     raise error from None
                 finally:
@@ -237,9 +238,33 @@ def _leaf_types(group: BaseExceptionGroup[BaseException]) -> list[str]:
     return names
 
 
-def _failure(types: list[str], seen: _CloseReasons) -> RuntimeError:
-    """Name what failed by class and Steam's stated reason, never by exception text."""
+def _frame_of(exc: BaseException) -> str | None:
+    """`dir/file.py:line in function` of the innermost frame of the first leaf.
+
+    Only the code location, never locals or exception text, which can carry the
+    refresh token or Steam URLs. Two path components keep `steam_mcp/client.py`
+    apart from steamio's own `steam/client.py`.
+    """
+    if isinstance(exc, BaseExceptionGroup):
+        for member in exc.exceptions:
+            if (found := _frame_of(member)) is not None:
+                return found
+        return None
+    tb = exc.__traceback__
+    if tb is None:
+        return None
+    while tb.tb_next is not None:
+        tb = tb.tb_next
+    code = tb.tb_frame.f_code
+    where = "/".join(Path(code.co_filename).parts[-2:])
+    return f"{where}:{tb.tb_lineno} in {code.co_name}"
+
+
+def _failure(types: list[str], seen: _CloseReasons, frame: str | None = None) -> RuntimeError:
+    """Name what failed by class, location and Steam's stated reason, never by exception text."""
     detail = ", ".join(dict.fromkeys(types)) or "unknown"
+    if frame:
+        detail += f" at {frame}"
     if seen.lines:
         detail += f"; steam said: {seen.lines[-1]}"
     detail += f"; last steam messages: {', '.join(seen.received) or 'none'}"

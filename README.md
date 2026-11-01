@@ -4,12 +4,12 @@ A read-only MCP that exposes Kai's Steam library over streamable-HTTP. It reads
 Steam through three deliberately separate data-access planes: the Web API,
 public storefront endpoints, and an authenticated Steam client/PICS session.
 
-It is a pure-read member of the [coilyco-bridge/deploy#30](https://forgejo.coilysiren.me/coilyco-bridge/deploy) personal-MCP fleet. Its Web API, storefront, and client/PICS adapters remain isolated so the distinct Steam access planes do not blur into one credential shape.
+It is a pure-read member of the coilyco/deploy#30 (an archived Forgejo ref) personal-MCP fleet. Its Web API, storefront, and client/PICS adapters remain isolated so the distinct Steam access planes do not blur into one credential shape.
 
 > **The repo is `steam-ops`, but the image and service are `steam-mcp`.** CI
-> publishes the private image as
-> `forgejo.coilysiren.me/coilyco-gaming/steam-mcp:<full-source-sha>` and verifies
-> the remote manifest.
+> published the private image as
+> `forgejo.coilysiren.me/coilyco-gaming/steam-mcp:<full-source-sha>`. That
+> retired with Forgejo on 2026-11-01 (COI-2953), and no GitHub image replaces it yet.
 
 ## Superseded: the clipboard scrape
 
@@ -117,6 +117,6 @@ Dev commands are declared in the [`justfile`](justfile). Run them as `just <verb
 
 - [AGENTS.md](AGENTS.md) - agent operating context for this repo.
 - [docs/FEATURES.md](docs/FEATURES.md) - inventory of what ships today.
-- [coilyco-flight-deck/reddit-mcp](https://forgejo.coilysiren.me/coilyco-flight-deck/reddit-mcp) - the source pattern this repo mirrors.
+- [coilyco/reddit-mcp](https://github.com/coilyco/reddit-mcp) - the source pattern this repo mirrors.
 
 Cross-reference convention from [coilysiren/agentic-os#59](https://github.com/coilyco-flight-deck/agentic-os/issues/59).

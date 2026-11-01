@@ -1,15 +1,16 @@
 # Publishing the image
 
-How a push to `main` becomes a published `steam-mcp` image.
+How a push to `main` became a published `steam-mcp` image.
 
 ## The train
 
-`.forgejo/workflows/build-publish.yml` runs the tests, then publishes to Forgejo
-OCI on every push to `main`.
+`.forgejo/workflows/build-publish.yml` ran the tests, then published to Forgejo
+OCI on every push to `main`. It retired with Forgejo on 2026-11-01 (COI-2931),
+and no GitHub workflow publishes an image yet.
 
 ## No deploy stage, deliberately
 
-Rollout is driven from `coilyco-bridge/deploy/services/steam-mcp`, per the layer
+Rollout is driven from `coilyco/deploy/services/steam-mcp`, per the layer
 invariant that source repositories publish and deploy repositories roll out. A
 deploy step here would put one layer in charge of both.
 

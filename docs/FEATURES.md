@@ -29,8 +29,8 @@ on port 9112, streamable-HTTP at `/mcp`. The repo is `steam-ops`, the image is
 
 ## Deploy
 
-Every push to canonical `main` publishes and verifies the private image at a
-full source SHA. Rollout lives in [deploy](https://forgejo.coilysiren.me/coilyco-bridge/deploy).
+Forgejo CI published and verified the private image at a full source SHA
+until it retired with Forgejo on 2026-11-01 (COI-2953). Rollout lives in [deploy](https://github.com/coilyco/deploy).
 
 ## See also
 

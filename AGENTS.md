@@ -22,7 +22,7 @@ No frontend, no database. `src/steam_mcp/` holds the server and its entrypoint; 
 
 ## Repo boundaries
 
-The deploy surface (namespace, Ingress, Authelia client, values.env) lives in [coilyco-bridge/deploy](https://forgejo.coilysiren.me/coilyco-bridge/deploy), not here (source -> deploy layer invariant). This repo builds and publishes the image; the deploy repo rolls it. The server shape is patterned on [coilyco-flight-deck/reddit-mcp](https://forgejo.coilysiren.me/coilyco-flight-deck/reddit-mcp) - keep the two in step where the pattern is shared (credential resolver, port convention, CI).
+The deploy surface (namespace, Ingress, Authelia client, values.env) lives in [coilyco/deploy](https://github.com/coilyco/deploy), not here (source -> deploy layer invariant). This repo builds and publishes the image; the deploy repo rolls it. The server shape is patterned on [coilyco/reddit-mcp](https://github.com/coilyco/reddit-mcp) - keep the two in step where the pattern is shared (credential resolver, port convention).
 
 ## Commands
 
@@ -40,19 +40,18 @@ Route every command through just, never bare `uv` / `pytest`. Verbs are declared
 
 ## Cross-repo contracts
 
-The private single-architecture image is published as
+The private single-architecture image was published as
 `forgejo.coilysiren.me/coilyco-gaming/steam-mcp:<full-source-sha>` by
-[`.forgejo/workflows/build-publish.yml`](.forgejo/workflows/build-publish.yml)
-on every push to main. The trusted deploy runner owns the write credential and
-verifies the remote manifest. The deploy repo consumes that exact reference
-through a separate read-only credential. Keep the dependency surface tiny
+[`.forgejo/workflows/build-publish.yml`](.forgejo/workflows/build-publish.yml).
+That retired with Forgejo on 2026-11-01 (COI-2953), and no GitHub workflow or
+image replaces it yet. Keep the dependency surface tiny
 (mcp + requests). A new dependency needs a reason.
 
 ## Release
 
-Push to main. CI tests, publishes one source-SHA image to Forgejo OCI, and
-verifies the remote manifest. There is no version bump or tag ceremony.
-Deferred cleanup gets a Forgejo issue, never a silent skip.
+Push to main. There is no version bump or tag ceremony. The Forgejo CI that
+published one source-SHA image retired with Forgejo on 2026-11-01 (COI-2931).
+Deferred cleanup gets a Linear record, never a silent skip.
 
 ## Agent rules
 

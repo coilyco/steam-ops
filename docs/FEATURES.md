@@ -29,8 +29,8 @@ on port 9112, streamable-HTTP at `/mcp`. The repo is `steam-ops`, the image is
 
 ## Deploy
 
-Forgejo CI published and verified the private image at a full source SHA
-until it retired with Forgejo on 2026-11-01 (COI-2953). Rollout lives in [deploy](https://github.com/coilyco/deploy).
+GitHub CI publishes and verifies the image at a full source SHA on
+`ghcr.io/coilyco/steam-mcp` (COI-3102). Rollout lives in [deploy](https://github.com/coilyco/deploy).
 
 ## See also
 

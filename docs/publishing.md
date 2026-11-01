@@ -4,9 +4,11 @@ How a push to `main` became a published `steam-mcp` image.
 
 ## The train
 
-`.forgejo/workflows/build-publish.yml` ran the tests, then published to Forgejo
-OCI on every push to `main`. It retired with Forgejo on 2026-11-01 (COI-2931),
-and no GitHub workflow publishes an image yet.
+`.github/workflows/build-publish.yml` runs the tests, then pushes
+`ghcr.io/coilyco/steam-mcp:<full-source-sha>` on every push to `main`, with
+`GITHUB_TOKEN` and `packages: write` (COI-3102). Forgejo OCI published it until
+2026-11-01. The repo is public, so the workflow runs on `ubuntu-latest` and holds
+no cluster credentials.
 
 ## No deploy stage, deliberately
 

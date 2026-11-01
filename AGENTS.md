@@ -40,17 +40,16 @@ Route every command through just, never bare `uv` / `pytest`. Verbs are declared
 
 ## Cross-repo contracts
 
-The private single-architecture image was published as
-`forgejo.coilysiren.me/coilyco-gaming/steam-mcp:<full-source-sha>` by
-[`.forgejo/workflows/build-publish.yml`](.forgejo/workflows/build-publish.yml).
-That retired with Forgejo on 2026-11-01 (COI-2953), and no GitHub workflow or
-image replaces it yet. Keep the dependency surface tiny
+The single-architecture image is published as
+`ghcr.io/coilyco/steam-mcp:<full-source-sha>` by
+[`.github/workflows/build-publish.yml`](.github/workflows/build-publish.yml).
+Keep the dependency surface tiny
 (mcp + requests). A new dependency needs a reason.
 
 ## Release
 
-Push to main. There is no version bump or tag ceremony. The Forgejo CI that
-published one source-SHA image retired with Forgejo on 2026-11-01 (COI-2931).
+Push to main. There is no version bump or tag ceremony. CI publishes one
+source-SHA image to GHCR.
 Deferred cleanup gets a Linear record, never a silent skip.
 
 ## Agent rules

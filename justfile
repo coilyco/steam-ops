@@ -38,7 +38,7 @@ precommit *ARGS:
 build-docker *ARGS:
     @docker build -t steam-mcp:local . "$@"
 
-# Validate the trusted Forgejo OCI publisher shell contract.
+# Validate the trusted GHCR publisher shell contract.
 check-publish *ARGS:
     @bash -n scripts/publish-image.sh "$@"
 

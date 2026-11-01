@@ -7,5 +7,5 @@ __pycache__
 .mypy_cache
 tests
 docs
-.forgejo
+.github
 uv.lock

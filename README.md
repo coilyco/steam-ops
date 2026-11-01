@@ -7,9 +7,8 @@ public storefront endpoints, and an authenticated Steam client/PICS session.
 It is a pure-read member of the coilyco/deploy#30 (an archived Forgejo ref) personal-MCP fleet. Its Web API, storefront, and client/PICS adapters remain isolated so the distinct Steam access planes do not blur into one credential shape.
 
 > **The repo is `steam-ops`, but the image and service are `steam-mcp`.** CI
-> published the private image as
-> `forgejo.coilysiren.me/coilyco-gaming/steam-mcp:<full-source-sha>`. That
-> retired with Forgejo on 2026-11-01 (COI-2953), and no GitHub image replaces it yet.
+> publishes the image as `ghcr.io/coilyco/steam-mcp:<full-source-sha>` on every
+> push to `main` (COI-3102).
 
 ## Superseded: the clipboard scrape
 

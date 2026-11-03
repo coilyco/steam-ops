@@ -1,27 +1,9 @@
 #!/usr/bin/env python3
-"""
-steam_games_to_yaml.py
+"""Parse the rendered text of a Steam games page into YAML (superseded).
 
-Parse the *rendered text* of a Steam games page into YAML.
-
-Source: https://steamcommunity.com/id/<account>/games  -> select-all, copy, paste to a file.
-This reads that visible-text dump (NOT the HTML, NOT the Web API).
-
-Usage:
-    python3 steam_games_to_yaml.py page.txt > library.yaml
-    python3 steam_games_to_yaml.py < page.txt > library.yaml
-    pbpaste | python3 steam_games_to_yaml.py            # macOS clipboard
-
-Layout assumptions (break if Steam changes the page):
-  - every title is rendered twice in a row (alt text + visible text),
-    sometimes concatenated as "FooFoo" then "Foo"
-  - playtime line literally starts "TOTAL PLAYED", may append "LAST PLAYED..."
-  - achievements are an "ACHIEVEMENTS" line followed by an "N/M" line
-  - playtimes under 2h show as "N minutes"; converted here to fractional hours
-
-For a durable feed instead of scraping, use the Steam Web API:
-  IPlayerService/GetOwnedGames?include_appinfo=1&include_played_free_games=1
-  (needs an API key + your 64-bit steamid; returns clean JSON).
+Usage: python3 steam_games_to_yaml.py page.txt > library.yaml
+Layout assumptions, input source, and the Web API replacement:
+docs/clipboard-scrape.md.
 """
 import re
 import sys

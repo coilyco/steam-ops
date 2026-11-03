@@ -26,8 +26,8 @@ repos:
         stages: [pre-commit, pre-push]
 
   # BEGIN managed by agentic-os/scripts/apply-agentic-os-hooks.py
-  - repo: https://forgejo.coilysiren.me/coilyco-flight-deck/agentic-os
-    rev: aos-precommit-v0.72.0
+  - repo: https://github.com/coilyco/agentic-os
+    rev: aos-precommit-v0.128.0
     hooks:
       - id: catalog-trifecta
       - id: documentation-placement
@@ -37,6 +37,7 @@ repos:
       - id: actions-run-one-line
       - id: source-doc-refs
       - id: check-skills
+      - id: check-composed-skills
       - id: dead-cross-links
       - id: repo-pointer-skills
       - id: misplaced-skills
@@ -44,6 +45,9 @@ repos:
       - id: agent-compose-dedup
       - id: trufflehog
       - id: pr-guard
+      - id: brand-case
+      - id: leak-guard
+      - id: unresolved-placeholder-guard
       - id: git-workflow
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0

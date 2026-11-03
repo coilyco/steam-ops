@@ -12,7 +12,7 @@ It is a pure-read member of the coilyco/deploy#30 (an archived Forgejo ref) pers
 
 ## Superseded: the clipboard scrape
 
-`steam_games_to_yaml.py` and `games.yaml` are the **superseded** predecessor - a manual select-all-copy scrape of the rendered games page. They are **left in place as data, not deleted.** The scrape's own docstring already named the durable path this MCP now wraps: `IPlayerService/GetOwnedGames?include_appinfo=1&include_played_free_games=1` (clean JSON from an API key + steamid64). New work goes through the MCP.
+`steam_games_to_yaml.py` and `games.yaml` are the **superseded** predecessor - a manual select-all-copy scrape of the rendered games page. They are **left in place as data, not deleted.** The scrape's own docstring already named the durable path this MCP now wraps: `IPlayerService/GetOwnedGames?include_appinfo=1&include_played_free_games=1` (clean JSON from an API key + steamid64). New work goes through the MCP. Usage and layout assumptions: [docs/clipboard-scrape.md](docs/clipboard-scrape.md).
 
 ## Tools (all read-only)
 

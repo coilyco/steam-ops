@@ -1,4 +1,7 @@
-"""Sentry gets crashes only, fully annotated, never the Steam key (teable:coilyco/deploy#8409)."""
+"""Sentry gets crashes only, fully annotated, never the Steam key.
+
+Origin: teable:coilyco/deploy#8409.
+"""
 
 from __future__ import annotations
 

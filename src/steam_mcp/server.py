@@ -1,28 +1,9 @@
 """FastMCP server exposing Kai's Steam library over streamable-HTTP.
 
-Read-only by construction. Each tool calls one `IPlayerService` endpoint of the
-Steam Web API and returns clean, normalized JSON records - the durable
-replacement for the clipboard scrape this repo used to carry
-(`steam_games_to_yaml.py`, now superseded):
-
-- get_owned_games      - the full owned library (appid, name, playtime, last-played)
-- get_recently_played  - games played in the last two weeks (recent-activity signal)
-
-A Steam Web API key over `IPlayerService` *reads* a library - it cannot post,
-trade, refund, or otherwise act on the account. That is the whole point: this is
-the second credential shape in the deploy#30 personal-MCP fleet (a Web API key,
-vs reddit-mcp's feed URL), and like reddit-mcp there is deliberately **no write
-tool** and no path that both ingests untrusted content and can act.
-
-Credential custody: the key and the steamid64 are private and never live in the
-image, the repo, or a committed config. Each is resolved at runtime,
-server-side, from an env var first and then from SSM (`aws ssm get-parameter
---with-decryption`), mirroring reddit-mcp's `_ssm` resolver and node-stats'
-env-based config. Env wins so the deploy can inject via an ExternalSecret
-without granting the pod `ssm:GetParameter`. Both SSM params already exist (used
-by steam-games-cli and the website /now) - this MCP reuses them, it does not
-introduce them. The secrets never leave the box and are never logged or returned
-to callers - only the fetched game records are.
+Read-only by construction. Each tool calls one `IPlayerService` endpoint and
+returns normalized JSON records: get_owned_games (the full library) and
+get_recently_played (the last two weeks). Credentials resolve env first, then
+SSM, and never leave the box. Custody and the no-write rule: docs/security.md.
 """
 
 from __future__ import annotations
